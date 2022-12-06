@@ -9,18 +9,6 @@ import (
 	"unicode"
 )
 
-var stacks = map[int][]string{
-	1: {"H", "C", "R"},
-	2: {"B", "J", "H", "L", "S", "F"},
-	3: {"R", "M", "D", "H", "J", "T", "Q"},
-	4: {"S", "G", "R", "H", "Z", "B", "J"},
-	5: {"R", "P", "F", "Z", "T", "D", "C", "B"},
-	6: {"T", "H", "C", "G"},
-	7: {"S", "N", "V", "Z", "B", "P", "W", "L"},
-	8: {"R", "J", "Q", "G", "C"},
-	9: {"L", "D", "T", "R", "H", "P", "F", "S"},
-}
-
 func main() {
 	file, err := os.Open("../../data/day-five/input.txt")
 	if err != nil {
@@ -31,18 +19,31 @@ func main() {
 	// read the file line by line using scanner
 	scanner := bufio.NewScanner(file)
 
+	instructionsReached := false
+	stacks := make(map[int][]string)
 	for scanner.Scan() {
 		line := scanner.Text()
+		bytes := []byte(line)
 
 		// Skip input lines until we reach move instructions
-		if !strings.Contains(line, "move") {
-			continue
+		if strings.Contains(line, "move") {
+			instructionsReached = true
 		}
 
-		numOfCratesToMove, fromStack, toStack := getInstructions(line)
-		// log.Println("Move", cratesToMove, "from", fromStack, "to", toStack)
+		if !instructionsReached && len(line) > 0 {
+			for i := 0; i < 9; i++ {
+				// If a crate exists on a stack, it will be at an index that is a multiple of 4,
+				// offset by 1, for a possible `[` character.
+				mapIndex := (i * 4) + 1
+				buildMap(bytes[mapIndex], i+1, stacks)
+			}
+		}
 
-		moveBatchOfCrates(stacks, numOfCratesToMove, fromStack, toStack)
+		if instructionsReached {
+			numOfCratesToMove, fromStack, toStack := getInstructions(line)
+			moveBatchOfCrates(stacks, numOfCratesToMove, fromStack, toStack)
+		}
+
 	}
 
 	log.Printf("Top Crates: %s\n", getTopCratesFromStacks(stacks))
@@ -86,6 +87,7 @@ func moveBatchOfCrates(stacks map[int][]string, numOfCratesToMove int, fromStack
 func getInstructions(instructions string) (int, int, int) {
 	// Possibly unsafe implementation, docs say that the order that fields are passed
 	// are not guaranteed; https://pkg.go.dev/strings#FieldsFunc
+	// We are splitting the fields on word characters, which leaves us just with the numbers
 	fields := strings.FieldsFunc(instructions, isWord)
 
 	cratesToMove, err := strconv.Atoi(fields[0])
@@ -121,4 +123,11 @@ func isWord(field rune) bool {
 		return true
 	}
 	return false
+}
+
+func buildMap(char byte, index int, stack map[int][]string) {
+	if unicode.IsLetter(rune(char)) {
+		// Prepend character, as we are building our stack from top to bottom
+		stack[index] = append([]string{string(char)}, stack[index]...)
+	}
 }
